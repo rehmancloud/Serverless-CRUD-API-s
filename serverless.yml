@@ -1,0 +1,91 @@
+service: testservice
+provider:
+  name: aws
+  runtime: nodejs12.x
+  stage: dev
+  region: us-east-1
+  environment:
+    DYNAMODB_TABLE: 'Users'
+    EMAIL: 'hitboxing20@gmail.com'
+    PASSWORD: 'IRELAND123'
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        -dynamodb:Query
+        -dynamodb:Scan
+        -dynamodb:GetItem
+        -dynamodb:PutItem 
+        -dynamodb:UpdateItem
+        -dynamodb:DeleteItem
+      Resource: "arn:aws:dynamodb:${opt:region,self:provider.region}:*:table/${self:provider.environment.DYNAMODB_TABLE}"
+   
+
+functions:
+  create:
+    handler: handler.create
+    events:
+      - http:
+          path: /users
+          method: post
+  getAll:
+    handler: handler.getAll
+    events:
+      - http:
+          path: /users
+          method: get
+
+  getOne:
+    handler: handler.getOne
+    events:
+      - http:
+          path: /users/{id}
+          method: get
+
+  update:
+    handler: handler.update
+    events:
+      - http:
+          path: /users/{id}
+          method: put
+          cors: true
+  delete:
+    handler: handler.delete
+    events:
+      - http:
+          path: /users/{id}
+          method: delete
+          cors: true
+custom:
+  dynamodb:
+    stages:
+      - dev
+    start:
+      port: 8000
+      inMemory: true
+      migrate: true
+  middleware:
+    pre:
+      - handler.authenticate
+      
+resources:
+  Resources:
+    UsersDynamoDbTable:
+      Type: 'AWS::DynamoDB::Table'
+      DeletionPolicy: Retain # table will stay on aws regardless if we delete this service
+      Properties:
+        AttributeDefinitions:
+          - AttributeName: id
+            AttributeType: S
+        KeySchema:
+          - AttributeName: id
+            KeyType: HASH
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
+        TableName: Users
+
+
+plugins:
+  - serverless-dynamodb-local
+  - serverless-offline
+  - serverless-middleware
